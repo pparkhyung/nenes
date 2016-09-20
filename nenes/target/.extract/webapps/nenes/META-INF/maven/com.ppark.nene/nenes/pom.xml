@@ -1,0 +1,90 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<groupId>com.ppark.nene</groupId>
+	<artifactId>nenes</artifactId>
+	<packaging>war</packaging>
+	<version>0.0.1-SNAPSHOT</version>
+	<name>NENES</name>
+	<url>http://maven.apache.org</url>
+	<dependencies>
+		<!-- for spring mvc : web.xml에 등록한 org.springframework.web.servlet.DispatcherServlet 
+			같은 class 사용을 위해 필요하다 -->
+		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-webmvc</artifactId>
+			<version>4.3.2.RELEASE</version>
+		</dependency>
+
+		<!-- provided이다. JSP에서 The superclass "javax.servlet.http.HttpServlet" 
+			was not found on the Java Build Path 에러표시가 난다 -->
+		<dependency>
+			<groupId>javax.servlet</groupId>
+			<artifactId>javax.servlet-api</artifactId>
+			<version>3.0.1</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>javax.servlet.jsp</groupId>
+			<artifactId>jsp-api</artifactId>
+			<version>2.2</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<!-- jsp에서 c:url등을 사용하기 위해 필요하다 -->
+		<dependency>
+			<groupId>javax.servlet</groupId>
+			<artifactId>jstl</artifactId>
+			<version>1.2</version>
+		</dependency>
+
+		<!-- netty 라이브러리 설정 -->
+		<dependency>
+			<groupId>io.netty</groupId>
+			<artifactId>netty-all</artifactId>
+			<version>4.1.5.Final</version>
+		</dependency>
+	</dependencies>
+
+
+	<build>
+		<finalName>nenes</finalName>
+		<plugins>
+			<plugin>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>3.1</version>
+				<configuration>
+					<source>1.8</source>
+					<target>1.8</target>
+					<encoding>utf-8</encoding>
+				</configuration>
+			</plugin>
+			<!-- tomcat을 embeded한 jar를 생성한다. 실행은 target폴더에 생성된 nenes.jar 파일 경로로 이동하여 java -jar nenes.jar을 실행한다-->
+			<plugin>
+				<groupId>org.apache.tomcat.maven</groupId>
+				<artifactId>tomcat7-maven-plugin</artifactId>
+				<version>2.1</version>
+				<executions>
+					<execution>
+						<id>tomcat-run</id>
+						<goals>
+							<goal>exec-war-only</goal>
+						</goals>
+						<phase>package</phase>
+						<configuration>
+							<path>/nenes</path>
+							<enableNaming>false</enableNaming>
+							<finalName>nenes.jar</finalName>
+							<charset>utf-8</charset>
+							<systemProperties>
+								<JAVA_OPTS>-Xms256m -Xmx256m -XX:MaxPermSize=128m -Dfile.encoding=utf-8</JAVA_OPTS>
+							</systemProperties>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+		</plugins>
+	</build>
+</project>
