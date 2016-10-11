@@ -1,35 +1,53 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<beans xmlns="http://www.springframework.org/schema/beans"
-	xmlns:mvc="http://www.springframework.org/schema/mvc" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xmlns:context="http://www.springframework.org/schema/context"
+<beans xmlns="http://www.springframework.org/schema/beans" xmlns:mvc="http://www.springframework.org/schema/mvc"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:websocket="http://www.springframework.org/schema/websocket"
 	xsi:schemaLocation="http://www.springframework.org/schema/beans
 		http://www.springframework.org/schema/beans/spring-beans.xsd
 		http://www.springframework.org/schema/mvc
 		http://www.springframework.org/schema/mvc/spring-mvc.xsd
         http://www.springframework.org/schema/context
-        http://www.springframework.org/schema/context/spring-context.xsd">
+        http://www.springframework.org/schema/context/spring-context.xsd 
+        http://www.springframework.org/schema/websocket 
+        http://www.springframework.org/schema/websocket/spring-websocket.xsd">
 
-    <!-- RequestMapping에 해당하지 않는 img,js,css를 서비스하기 위하여 선언을 추가해야 한다. -->
+	<!-- RequestMapping에 해당하지 않는 img,js,css를 서비스하기 위하여 선언을 추가해야 한다. -->
 	<mvc:default-servlet-handler />
 
 	<mvc:annotation-driven />
 
-	<!-- bean 주입을 위한 @Autowired, @Resource 등을 사용하능하게 한다. 사용을 위하여 beans 태그에 context 
-		관련 선언을 추가해야 한다. -->
+	<!-- bean 주입을 위한 @Autowired, @Resource 등을 사용하능하게 한다. 사용을 위하여 beans 태그에 context 관련 선언을 추가해야 한다. -->
 	<context:annotation-config />
 
-    <!-- Command 패키지 이하의 클래스 중 @Controller 어노테이션이 선언된 클래스를 빈으로 생성한다.-->
-	<context:component-scan base-package="command">
+	<!-- Command 패키지 이하의 클래스 중 @Controller, @Service 어노테이션이 선언된 클래스를 빈으로 생성한다. -->
+	<!-- <context:component-scan base-package="command, nene.service> -->
+	<context:component-scan base-package="command, nene, server">
 		<context:include-filter type="annotation" expression="org.springframework.stereotype.Controller" />
-		<!-- <context:exclude-filter type="annotation" expression="org.springframework.stereotype.Service"/> 
-			<context:exclude-filter type="annotation" expression="org.springframework.stereotype.Repository"/> -->
+		<context:include-filter type="annotation" expression="org.springframework.stereotype.Service" />
+		<!--<context:exclude-filter type="annotation" expression="org.springframework.stereotype.Repository"/> -->
 	</context:component-scan>
 
 	<mvc:view-controller path="/n" view-name="n" />
-	
+	<mvc:view-controller path="/w" view-name="w" />
+
 	<mvc:view-resolvers>
 		<mvc:jsp prefix="/WEB-INF/view/" />
 	</mvc:view-resolvers>
+
+	<!-- 웹소켓을 위한 설정 -->
+	<websocket:handlers>
+		<websocket:mapping path="/ws" handler="wsHandler" />
+	</websocket:handlers>
+
+	<bean id="wsHandler" class="websocket.WsHandler" />
+
+	<!-- 비동기 이벤트 설정 -->
+	<!-- 비동기가 아닌것 같음... 아래 내용을 뺴변 이벤트 리스너 구현 메소드를 nioEventLoopGroup이 실행하여 비동기처리됨 -->
+<!-- 	<bean id="applicationEventMulticaster" class="org.springframework.context.event.SimpleApplicationEventMulticaster">
+		<property name="taskExecutor">
+			<bean class="org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor" />
+		</property>
+	</bean> -->
 
 </beans>

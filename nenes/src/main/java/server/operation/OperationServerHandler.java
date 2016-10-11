@@ -16,6 +16,9 @@
 
 package server.operation;
 
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.web.context.WebApplicationContext;
+
 import command.OperationCommand;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
@@ -23,9 +26,16 @@ import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.util.CharsetUtil;
+import nene.event.MessageEvent;
+import nene.event.MessageEventData;
+import nene.event.MessageEventData.EventType;
 import server.boot.ChannelManager;
 
 public class OperationServerHandler extends SimpleChannelInboundHandler<Object> {
+
+	WebApplicationContext applicationContext;
+
+	ApplicationEventPublisher eventPublisher;
 
 	int headerSize;
 	String headerBody;
@@ -37,15 +47,25 @@ public class OperationServerHandler extends SimpleChannelInboundHandler<Object> 
 
 	String operationCode = "";
 	String operationData = "";
-	
-	//에이전트 이름은 nenea가 처음 연결할 떄 보내주는 OP_CODE_JOIN 메시지에 담겨있다
+
+	// @Resource(name="wsHandler")
+	// WsHandler wsHandler;
+
+	// 에이전트 이름은 nenea가 처음 연결할 떄 보내주는 OP_CODE_JOIN 메시지에 담겨있다
 	String agentName = "";
+
+	public OperationServerHandler(WebApplicationContext applicationContext, ApplicationEventPublisher eventPublisher) {
+		super();
+		this.applicationContext = applicationContext;
+		this.eventPublisher = eventPublisher;
+	}
 
 	@Override
 	public void channelActive(ChannelHandlerContext ctx) {
 
-		ChannelManager.map.put(ctx.channel().id().toString(), ctx.channel());
-		System.out.println("Client " + ctx.channel().remoteAddress() + " connected");
+		//ssl 거부시에도 등록되므로 nenea에서 송신한 join 메시지를 받아야만 채널을 등록함 > 로그만 남기자
+		//ChannelManager.map.put(ctx.channel().id().toString(), ctx.channel());
+		System.out.println("[channelActive] Client " + ctx.channel().remoteAddress() + " connected");
 
 		// Send greeting for a new connection.
 		// ctx.writeAndFlush("HELO: Type the path of the file to retrieve.\n");
@@ -100,17 +120,41 @@ public class OperationServerHandler extends SimpleChannelInboundHandler<Object> 
 		if (offset >= dataSize) {
 			offset = 0;
 			headerRead = false;
-			
+
 			if (headerBody.startsWith(OperationCommand.OP_CODE_JOIN)) {
-				agentName = operationData;
+				// 에이전트 접속시 이름생성
+				agentName = operationData + "(" + ctx.channel().id().toString() + ")";
+
+				// WebApplicationContext context =
+				// ContextLoader.getCurrentWebApplicationContext();
+				// WsHandler wsHandler =
+				// (WsHandler)context.getBean("websocket.WsHandler.class");
+				// WebApplicationContext wac = BootServer.wac;
+				// WsHandler wsHandler = (WsHandler)wac.getBean("wsHandler");
+				// WsHandler.sendMessage(agentName + "("
+				// +ctx.channel().id().toString() + ")");
+
 			}
-			
-			ChannelManager.map.remove(ctx.channel().id().toString());
-			ChannelManager.map.put(agentName + "(" +ctx.channel().id().toString() + ")", ctx.channel());
-			
+
+			//ChannelManager.map.remove(ctx.channel().id().toString());
+			ChannelManager.map.put(agentName, ctx.channel());
+
+			// 이벤트 기반 코드
+			publishEvent(EventType.Connected, agentName, "");
+
+			// 강력한 결합 코드
+			// WsHandler ws = (WsHandler)
+			// applicationContext.getBean("wsHandler");
+			// ws.sendMessage(agentName + "(" + ctx.channel().id().toString() +
+			// ") is connected");
+			// System.out.println(this.getClass() + agentName + "(" +
+			// ctx.channel().id().toString() + ") is connected");
+
 			System.out.println("OP Data : " + operationData);
 			System.out.println("OP Data 처리시간 : " + ((System.currentTimeMillis() - startTm) / 1000.0f) + "초");
-			operationData = "";
+
+			operationData = ""; // 초기화
+
 			return;
 		}
 
@@ -130,8 +174,19 @@ public class OperationServerHandler extends SimpleChannelInboundHandler<Object> 
 	public void channelInactive(ChannelHandlerContext ctx) throws Exception {
 		super.channelInactive(ctx);
 
-		ChannelManager.map.remove(agentName + "(" +ctx.channel().id().toString() + ")");
+		ChannelManager.map.remove(agentName);
+		publishEvent(EventType.Disconnected, agentName, "");
 		System.out.println(ctx.channel().id());
 
 	}
+
+	private void publishEvent(EventType eventType, String publisher, String eventMessage) {
+		MessageEventData data = new MessageEventData();
+		data.setEventType(eventType);
+		data.setPublisher(publisher);
+		data.setMessage(eventMessage);
+		MessageEvent event = new MessageEvent(this, data);
+		eventPublisher.publishEvent(event);
+	}
+
 }

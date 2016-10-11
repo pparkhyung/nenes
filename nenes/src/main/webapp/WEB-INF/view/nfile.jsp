@@ -52,6 +52,7 @@
                     <li><a href="<c:url value="/ncommand" />">message</a></li>
                     <li><a href="<c:url value="/noperation" />">operation</a></li>
                     <li class="active"><a href="<c:url value="/nfile" />">file</a></li>
+                    <li><a href="<c:url value="/nconfiguration" />">configuration</a></li>
                 </ul>
             </div>
             <!--/.nav-collapse -->
@@ -72,9 +73,16 @@
   </div>
 
   <div class="form-group">
+    <label class="control-label col-sm-4" for="operation" >File List : </label>
+    <div class="col-sm-6 agent"  style="background-color:#6f60b3">
+        <form:checkboxes path="fileList" items="${fileList}" />
+    </div>
+  </div>
+  
+  <div class="form-group">
     <label class="control-label col-sm-4" for="operation">File : </label>
     <div class="col-sm-6">
-      <input type="text" class="form-control" id="fileName" name="fileName" placeholder="enter file location" value="d:\nene4data.zip">
+      <input type="text" class="form-control" id="fileName" name="fileName" placeholder="enter file location" value="${fileName}">
     </div>
   </div>
   

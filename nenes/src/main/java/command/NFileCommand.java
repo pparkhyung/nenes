@@ -3,11 +3,14 @@ package command;
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map.Entry;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -19,6 +22,9 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.DefaultFileRegion;
 import io.netty.handler.ssl.SslHandler;
+import nene.event.EventPublisher;
+import nene.event.MessageEventData.EventType;
+import nene.util.FileUtil;
 import server.boot.BootServer;
 import server.boot.ChannelManager;
 
@@ -29,15 +35,73 @@ public class NFileCommand {
 	@Autowired
 	BootServer bootServer;
 
+	@Autowired
+	FileUtil fileService;
+	
+	@Autowired
+	EventPublisher  publisher;
+
+	//log4j2 test
+	private static final Logger logger = LogManager.getLogger("nenesLogger");
+	
 	@RequestMapping("/nfile")
-	public String SendCommand(FileMessage fileMessage, Model model) throws IOException {
+	public String SendCommand(FileMessage fileMessage, Model model) {
+		
+		logger.debug("log4j test");
 
-		System.out.println("입력파일 : " + fileMessage.getFileName());
+		final String workspace = NConfiguration.conf.getFileDirectory();
 
-		List<String> agents = new ArrayList<String>();
+		// 입력값 로깅
+		// System.out.println("입력파일 : " + fileMessage.getFileName());
+		// for (String s : fileMessage.getFileList()) {
+		// System.out.println("선택파일 : " + s);
+		// }
+
+		// 선택한 파일 이름 및 에이전트 가져오기
+		List<String> agentNames = fileMessage.getAgent();
+		List<String> fileList = fileMessage.getFileList();
+
+		// checkbox를 통해 사용자가 선택한 에이전트에게 파일 보내기
+		System.out.println("----------------------Send File-----------------");
+
+		if (agentNames != null) {
+			Iterator agentName = agentNames.iterator();
+			while (agentName.hasNext()) {
+				String element = (String) agentName.next();
+				// 1. agent에게 파일 보내기 : 직접입력한 경우
+				
+				if (fileMessage.getFileName() != null && !fileMessage.getFileName().equals("") ) {
+					try {
+						SendFile(fileMessage.getFileName(), element);
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+				}
+				// 2. agent에게 파일 보내기 : 선택한 경우
+				for (String selectedfileName : fileList) {
+					try {
+						SendFile(workspace + NConfiguration.separator + selectedfileName, element);
+						System.out.println(
+								"send selectedfile " + workspace + NConfiguration.separator + selectedfileName);
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+				}
+			}
+		}
+
+		// workspace의 파일을 조회한다.
+		try {
+			fileList = fileService.fileList(workspace);
+			for (String s : fileList)
+				System.out.println("[workspace file list] " + s);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 
 		// 연결된 에이전트 리스트 가져오기
 		System.out.println("----------------------channel Status-----------------");
+		List<String> agents = new ArrayList<String>();
 		Iterator iterator = ChannelManager.map.entrySet().iterator();
 		while (iterator.hasNext()) {
 			Entry entry = (Entry) iterator.next();
@@ -45,19 +109,7 @@ public class NFileCommand {
 			agents.add(entry.getKey().toString());
 		}
 
-		// checkbox를 통해 사용자가 선택한 에이전트 ID 보기
-		System.out.println("----------------------Send Message-----------------");
-		List<String> agentNames = fileMessage.getAgent();
-		if (agentNames != null) {
-			Iterator agentName = agentNames.iterator();
-			while (agentName.hasNext()) {
-				String element = (String) agentName.next();
-				// agent에게 파일 보내기
-				if (fileMessage.getFileName() != null) {
-					SendFile(fileMessage.getFileName(), element);
-				}
-			}
-		}
+		model.addAttribute("fileList", fileList);
 		model.addAttribute("agents", agents);
 		model.addAttribute("fileMessage", fileMessage);
 
@@ -68,62 +120,83 @@ public class NFileCommand {
 
 		final Channel ch = (Channel) ChannelManager.map.get(element);
 
-		if (ch == null && !ch.isActive()) {
+		if (ch == null || !ch.isActive()) {
 			return;
 		}
 
 		// 실제파일이 있는지 검증
-		System.out.println("실제파일이 있는지 검증");
+		//System.out.println("실제파일이 있는지 검증");
 		RandomAccessFile raf = null;
 		long length = -1;
 		try {
+			System.out.println("[debug]" + msg);
 			raf = new RandomAccessFile(msg, "r");
 			length = raf.length();
 		} catch (Exception e) {
-			ch.writeAndFlush("ERR: " + e.getClass().getSimpleName() + ": " + e.getMessage() + '\n');
+			// ch.writeAndFlush("ERR: " + e.getClass().getSimpleName() + ": " +
+			e.printStackTrace();
+			System.err.println("파일 검증 실패");
 			return;
 		} finally {
-			if (length < 0 && raf != null) {
+			if (length > 0 && raf != null) {
 				raf.close();
 			}
 		}
-		// ch.write("OK: " + raf.length() + '\n');
 
 		// 파일헤더 전송
-		final File file = new File(msg);
-		ChannelFuture future = ch.writeAndFlush(this.initializeProtocol(file, ch));
+		ChannelFuture future = ch.writeAndFlush(this.initializeProtocol(msg, ch));
 
 		future.addListener(new ChannelFutureListener() {
 			@Override
 			public void operationComplete(ChannelFuture future) throws Exception {
 				System.out.println("header transfer complete. transfer data");
 
+				// try {
 				RandomAccessFile raf = new RandomAccessFile(msg, "r");
 				long length = raf.length();
 
-				// 파일 전송
-				System.out.println("파일 전송");
+				//System.out.println("파일 전송");
 				if (ch.pipeline().get(SslHandler.class) == null) {
 					// SSL not enabled - can use zero-copy file transfer.
-					ch.write(new DefaultFileRegion(raf.getChannel(), 0, length));
+
+					ChannelFuture futurefile = ch.writeAndFlush(new DefaultFileRegion(raf.getChannel(), 0, length));
+
+					futurefile.addListener(new ChannelFutureListener() {
+						@Override
+						public void operationComplete(ChannelFuture future) throws Exception {
+							System.out.println("file transfer complete");
+							publisher.publishEvent(this, EventType.FileSent, element, new File(msg).getName());
+							raf.close();
+						}
+					});
+
 				} else {
 					// SSL enabled - cannot use zero-copy file transfer.
 					// ch.write(new ChunkedFile(raf));
 				}
+				// } catch (IOException e) {
+				// e.printStackTrace();
+				// return;
+				// } finally {
+				// if (length > 0 && raf != null) {
+				// raf.close();
+				// }
+				// }
+				// 파일 전송
+
 			}
 		});
 
-		// ch.writeAndFlush("\n");
-		System.out.println("파일 전송 완료");
 	}
 
-	private ByteBuf initializeProtocol(File file, Channel ch) {
-		System.out.println("header");
+	private ByteBuf initializeProtocol(String msg, Channel ch) throws UnsupportedEncodingException {
+		final File file = new File(msg);
+		//System.out.println("header");
 		ByteBuf buf = ch.alloc().heapBuffer(file.getName().length() + 12);
-		buf.writeInt(file.getName().length());
-		buf.writeBytes(file.getName().getBytes());
+		buf.writeInt(file.getName().getBytes("UTF-8").length);
+		buf.writeBytes(file.getName().getBytes("UTF-8"));
 		buf.writeLong(file.length());
-		System.out.println("buffer index : " + buf.writerIndex());
+		//System.out.println("buffer index : " + buf.writerIndex());
 		return buf;
 	}
 }

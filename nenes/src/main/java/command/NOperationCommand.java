@@ -11,30 +11,51 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.context.WebApplicationContext;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.Channel;
+import nene.service.DirWatchService;
 import server.boot.BootServer;
 import server.boot.ChannelManager;
+import websocket.WsHandler;
 
 @Controller
 public class NOperationCommand {
 
+	@Autowired
+	WebApplicationContext applicationContext;
+
 	final static String OP_CODE_SET = "OP_SET"; // agent에게 설정내역을 전송
 	final static String OP_CODE_REQUEST = "OP_REQUEST"; // agent에게 정보를 요청
 	final static String OP_CODE_SHELL = "OP_SHELL"; // agent에게 shell 실행을 명령
-	final public static String OP_CODE_JOIN = "OP_JOIN"; // agent가 server와 연결 생성 후 가입메시지를 보냄
+	final public static String OP_CODE_JOIN = "OP_JOIN"; // agent가 server와 연결 생성
+															// 후 가입메시지를 보냄
 
 	// @Resource(name = "bootServer")
 	@Autowired
 	BootServer bootServer;
 
-	@RequestMapping("/noperation")
-	public String SendCommand(Message message, Model model) throws UnsupportedEncodingException {
+	@Autowired
+	DirWatchService service;
 
-		System.out.println("입력메시지 : " + message.getMsg());
+	@RequestMapping("/noperation")
+	public String SendCommand(Message message, Model model) {
+
+		System.out.println("NOperationCommand : " + message.getMsg());
+
+		if (message.getMsg() != null) 
+			if(message.getMsg().equals("watch")) {
+			service.start();
+		}
+
+		WsHandler ws = (WsHandler) applicationContext.getBean("wsHandler");
+
+		// ws.sendMessage("입력메시지 : " + message.getMsg());
+
+		// System.out.println("nene.service.wsHandler : " + ws);
 
 		List<String> agents = new ArrayList<String>();
 
@@ -83,7 +104,7 @@ public class NOperationCommand {
 	}
 
 	// Operation Header 생성
-	private ByteBuf initializeProtocol(String msg, Channel ch) throws UnsupportedEncodingException {
+	private ByteBuf initializeProtocol(String msg, Channel ch) {
 		System.out.println("Message Header");
 		// ByteBuf buf = ch.alloc().heapBuffer(OP_CODE_REQUEST.length() + 12 +
 		// msg.getBytes("UTF-8").length);
@@ -91,7 +112,12 @@ public class NOperationCommand {
 
 		buf.writeInt(OP_CODE_REQUEST.length());
 		buf.writeBytes(OP_CODE_REQUEST.getBytes());
-		buf.writeLong(msg.getBytes("UTF-8").length);
+		try {
+			buf.writeLong(msg.getBytes("UTF-8").length);
+		} catch (UnsupportedEncodingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 		// buf.writeBytes(msg.getBytes("UTF-8"));
 		System.out.println("buffer index : " + buf.writerIndex());
 		System.out.println("hex : " + ByteBufUtil.hexDump(buf));

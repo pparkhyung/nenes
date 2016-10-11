@@ -30,7 +30,7 @@ public class FileCommand {
 	BootServer bootServer;
 
 	@RequestMapping("/file")
-	public String SendCommand(FileMessage fileMessage, Model model) throws IOException {
+	public String SendCommand(FileMessage fileMessage, Model model) {
 
 		System.out.println("입력파일 : " + fileMessage.getFileName());
 
@@ -54,7 +54,12 @@ public class FileCommand {
 				String element = (String) agentName.next();
 				// agent에게 파일 보내기
 				if (fileMessage.getFileName() != null) {
-					SendFile(fileMessage.getFileName(), element);
+					try {
+						SendFile(fileMessage.getFileName(), element);
+					} catch (IOException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
 				}
 			}
 		}

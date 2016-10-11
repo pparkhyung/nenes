@@ -52,6 +52,7 @@
                     <li><a href="<c:url value="/ncommand" />">message</a></li>
                     <li class="active"><a href="<c:url value="/noperation" />">operation</a></li>
                     <li><a href="<c:url value="/nfile" />">file</a></li>
+                    <li><a href="<c:url value="/nconfiguration" />">configuration</a></li>
                 </ul>
             </div>
             <!--/.nav-collapse -->
@@ -86,8 +87,6 @@
   
 </form:form>
         </div>
-        
-    
     <!-- /.container -->
 
     <!-- Bootstrap core JavaScript
@@ -98,6 +97,6 @@
         src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
     <!-- Include all compiled plugins (below), or include individual files as needed -->
     <script src="/nenes/resource/bootstrap/js/bootstrap.min.js"></script>
-
+    
 </body>
 </html>

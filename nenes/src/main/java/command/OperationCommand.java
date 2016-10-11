@@ -32,7 +32,7 @@ public class OperationCommand {
 	BootServer bootServer;
 
 	@RequestMapping("/operation")
-	public String SendCommand(Message message, Model model) throws UnsupportedEncodingException {
+	public String SendCommand(Message message, Model model) {
 
 		System.out.println("입력메시지 : " + message.getMsg());
 
@@ -83,7 +83,7 @@ public class OperationCommand {
 	}
 
 	// Operation Header 생성
-	private ByteBuf initializeProtocol(String msg, Channel ch) throws UnsupportedEncodingException {
+	private ByteBuf initializeProtocol(String msg, Channel ch) {
 		System.out.println("Message Header");
 		// ByteBuf buf = ch.alloc().heapBuffer(OP_CODE_REQUEST.length() + 12 +
 		// msg.getBytes("UTF-8").length);
@@ -91,7 +91,12 @@ public class OperationCommand {
 
 		buf.writeInt(OP_CODE_REQUEST.length());
 		buf.writeBytes(OP_CODE_REQUEST.getBytes());
-		buf.writeLong(msg.getBytes("UTF-8").length);
+		try {
+			buf.writeLong(msg.getBytes("UTF-8").length);
+		} catch (UnsupportedEncodingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 		// buf.writeBytes(msg.getBytes("UTF-8"));
 		System.out.println("buffer index : " + buf.writerIndex());
 		System.out.println("hex : " + ByteBufUtil.hexDump(buf));

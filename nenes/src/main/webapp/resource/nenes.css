@@ -1,6 +1,25 @@
+html{
+   height:100%;
+}
+
+.btn .badge-notify{
+   position:relative;
+   top: -6px;
+   left: -7px;
+  }
+  
 .nenes {
   padding: 40px 15px;
   text-align: center;
+}
+
+.dropdown-menu {
+	color: #818181;
+	background-color: #6f60b3;
+}
+
+.dropdown-menu li a{
+	background-color: #6f60b3;
 }
 
 .agent {
@@ -26,6 +45,7 @@
       font: 400 15px Lato, sans-serif;
       line-height: 1.8;
       color: #818181;
+      height:100%;
   }
   h2 {
       font-size: 24px;
