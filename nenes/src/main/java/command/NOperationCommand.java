@@ -45,6 +45,7 @@ public class NOperationCommand {
 	public String SendCommand(Message message, Model model) {
 
 		System.out.println("NOperationCommand : " + message.getMsg());
+		System.out.println("NOperationCommand : " + message.getAgent());
 
 		if (message.getMsg() != null) 
 			if(message.getMsg().equals("watch")) {
