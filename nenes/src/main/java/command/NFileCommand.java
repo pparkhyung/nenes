@@ -22,6 +22,7 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.DefaultFileRegion;
 import io.netty.handler.ssl.SslHandler;
+import io.netty.handler.stream.ChunkedFile;
 import nene.event.EventPublisher;
 import nene.event.MessageEventData.EventType;
 import nene.util.FileUtil;
@@ -172,7 +173,17 @@ public class NFileCommand {
 
 				} else {
 					// SSL enabled - cannot use zero-copy file transfer.
-					// ch.write(new ChunkedFile(raf));
+					ChannelFuture futurefile = ch.writeAndFlush(new ChunkedFile(raf));
+					
+					futurefile.addListener(new ChannelFutureListener() {
+						@Override
+						public void operationComplete(ChannelFuture future) throws Exception {
+							System.out.println("file transfer complete");
+							publisher.publishEvent(this, EventType.FileSent, element, new File(msg).getName());
+							raf.close();
+						}
+					});
+					
 				}
 				// } catch (IOException e) {
 				// e.printStackTrace();
